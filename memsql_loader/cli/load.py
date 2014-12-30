@@ -364,11 +364,13 @@ Invalid command line options for load:
     def queue_job(self):
         all_keys = list(self.job.get_files(s3_conn=self.s3_conn))
 
+        paths = self.job.spec.source.paths
+
         if self.options.dry_run:
             print "DRY RUN SUMMARY:"
             print "----------------"
             if len(all_keys) == 0:
-                print "Paths %s matched no files" % ([str(p) for p in self.options.paths])
+                print "Paths %s matched no files" % ([str(p) for p in paths])
             else:
                 print "List of files to load:"
                 for key in all_keys:
@@ -378,7 +380,7 @@ Invalid command line options for load:
                 print load_data.build_example_query(self.job, file_id)
             sys.exit(0)
         elif len(all_keys) == 0:
-            self.logger.warning("Paths %s matched no files. Please check your path specification (be careful with relative paths)." % ([str(p) for p in self.options.paths]))
+            self.logger.warning("Paths %s matched no files. Please check your path specification (be careful with relative paths)." % ([str(p) for p in paths]))
 
         self.jobs = None
         spec = self.job.spec

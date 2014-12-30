@@ -1,0 +1,4 @@
+#!/bin/sh
+make deps
+source venv/bin/activate
+echo "You have been activated!"

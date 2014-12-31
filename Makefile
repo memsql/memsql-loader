@@ -64,15 +64,15 @@ clean:
 	for _kill_path in $$(find . -type f -name "*.pyc"); do rm -f $$_kill_path; done
 	for _kill_path in $$(find . -name "__pycache__"); do rm -rf $$_kill_path; done
 
-distribution/dist/memsql-loader: distribution/memsql_loader.spec
+distribution/dist/memsql-loader.tar.gz: distribution/memsql_loader.spec
 	make -C distribution build
 
 .PHONY: build
-build: clean distribution/dist/memsql-loader
+build: clean distribution/dist/memsql-loader.tar.gz
 
 .PHONY: release
-release: distribution/dist/memsql-loader
-	git tag -f "$(MEMSQL_LOADER_VERSION)" && git push --tags
+release: distribution/dist/memsql-loader.tar.gz
+	git tag -f "$(MEMSQL_LOADER_VERSION)" && git push --tags -f
 	@sleep 1
 	-github-release info -u memsql -r memsql-loader
 	-github-release delete -u memsql -r memsql-loader \
@@ -84,8 +84,8 @@ release: distribution/dist/memsql-loader
 		--draft
 	github-release upload -u memsql -r memsql-loader \
 		--tag "$(MEMSQL_LOADER_VERSION)" \
-		--name "memsql-loader" \
-		--file "distribution/dist/memsql-loader"
+		--name "memsql-loader.tar.gz" \
+		--file "distribution/dist/memsql-loader.tar.gz"
 	@echo "The release has been uploaded as a draft. View/Edit/Delete it here:"
 	@echo "https://github.com/memsql/memsql-loader/releases"
 

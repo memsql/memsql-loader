@@ -19,3 +19,23 @@ su memsql -c \ "cd $BASE/distribution && pyi-build -y memsql_loader.spec"
 
 # cleanup some stuff (this is created as root)
 rm -rf /memsql_loader/memsql_loader.egg-info
+
+############################
+# TAR.GZ
+
+DISTPATH=$BASE/distribution/dist
+
+mv $DISTPATH/memsql-loader $DISTPATH/memsql-loader.bin
+
+mkdir $DISTPATH/memsql-loader
+cp $DISTPATH/memsql-loader.bin $DISTPATH/memsql-loader/memsql-loader
+
+chown -R memsql:memsql $DISTPATH
+
+# change dir to tar build dir
+cd $DISTPATH
+tar czf memsql-loader.tar.gz memsql-loader
+chown memsql:memsql memsql-loader.tar.gz
+
+rm -r $DISTPATH/memsql-loader
+mv $DISTPATH/memsql-loader.bin $DISTPATH/memsql-loader

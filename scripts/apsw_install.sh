@@ -1,5 +1,7 @@
 #!/bin/bash
 
+##### UPDATE memsql_loader/main.py if you change this file!
+
 pip freeze | grep -q "apsw.git@91418ad337da1081a6c476bfe698c141faf752ce"
 ret=$?
 if [ "$ret" != "0" ]

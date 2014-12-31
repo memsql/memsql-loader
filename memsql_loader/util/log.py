@@ -2,9 +2,11 @@ import os
 import logging
 import argparse
 
+from memsql_loader.util import paths
+
 _debug = False
 _disable_stdout = False
-_log_path = os.path.join(os.getcwd(), 'memsql_loader.log')
+_log_path = os.path.join(paths.get_data_dir(), 'memsql_loader.log')
 
 _file_handler = None
 _stream_handler = None
@@ -68,7 +70,7 @@ def configure(parser):
         nargs=0,
         help="Disable console output of logs.")
     parser.add_argument('--log-path',
-        default=os.path.join(os.getcwd(), 'memsql_loader.log'),
+        default=_log_path,
         action=_SetLogPath,
         help="Detailed logs will be saved at this path.")
 

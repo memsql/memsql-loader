@@ -88,3 +88,7 @@ release: distribution/dist/memsql-loader
 		--file "distribution/dist/memsql-loader"
 	@echo "The release has been uploaded as a draft. View/Edit/Delete it here:"
 	@echo "https://github.com/memsql/memsql-loader/releases"
+
+.PHONY: release-pypi
+release-pypi: clean
+	@source venv/bin/activate && python setup.py sdist upload

@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
 import os, sys
-ROOT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')
-sys.path.append(ROOT_PATH)
-
-from memsql_loader.util import config
-from memsql_loader.db import connection_wrapper, pool
+ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
+sys.path.insert(0, ROOT_PATH)
 
 if __name__ == "__main__":
-    options = config.load_options()
+    from memsql_loader.util import paths
 
-    try:
-        options.command(options)
-    finally:
-        pool.close_connections()
+    # this is for non pyinstaller envs and non pip installed envs
+    # (pip installed envs go through a separate entry point that directly calls main)
+    if not hasattr(sys, "_MEIPASS") and paths.MEMSQL_LOADER_PATH_ENV not in os.environ:
+        os.environ[paths.MEMSQL_LOADER_PATH_ENV] = ROOT_PATH
+
+    from memsql_loader.main import main
+    main()

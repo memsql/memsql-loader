@@ -2,21 +2,14 @@ import contextlib
 import gc
 import multiprocessing
 import os
-import sys
 
 from memsql_loader.util.apsw_storage import APSWStorage
+from memsql_loader.util import paths
 
 MEMSQL_LOADER_DB = 'memsql_loader.db'
 
 def get_loader_db_path():
-    # Check if we're in a PyInstaller frozen environment and change the root
-    # path accordingly if necessary.
-    if getattr(sys, '_MEIPASS', None):
-        root_path = os.path.abspath(os.path.dirname(os.path.realpath(sys.executable)))
-    else:
-        root_path = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..'))
-    return os.path.join(root_path, MEMSQL_LOADER_DB)
-
+    return os.path.join(paths.get_data_dir(), MEMSQL_LOADER_DB)
 
 # IMPORTANT NOTE: This class cannot be shared across forked processes unless
 # you use fork_wrapper.

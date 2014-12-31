@@ -45,6 +45,17 @@ You should see the prefix `(venv)` in your shell. You can run the loader with
 
     (venv) $ ./bin/memsql-loader --help
 
+Installing from PyPi
+--------------------
+
+MemSQL Loader is also released onto PyPi and thus is installable via tools such as pip.
+
+    $ pip install memsql-loader
+
+When installing via pip, APSW will need to be installed separately.  Running memsql-loader will provide the correct installation command for APSW.
+
+    $ memsql-loader
+
 Running the Loader
 ------------------
 

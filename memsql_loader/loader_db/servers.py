@@ -22,7 +22,7 @@ class Servers(apsw_sql_utility.APSWSQLUtility):
         with self.storage.transaction() as cursor:
             cursor.execute('''
                 DELETE FROM servers
-                WHERE last_contact < DATETIME('now', 'unixepoch', '-%s second')
+                WHERE last_contact < DATETIME('now', '-%s second')
             ''' % (SERVER_TTL,))
 
     def ping(self):
@@ -35,7 +35,7 @@ class Servers(apsw_sql_utility.APSWSQLUtility):
             cursor.execute('''
                 UPDATE servers
                 SET
-                    last_contact = DATETIME('now', 'unixepoch')
+                    last_contact = DATETIME('now')
                 WHERE pid = ?
             ''', (os.getpid(),))
 
@@ -49,7 +49,7 @@ class Servers(apsw_sql_utility.APSWSQLUtility):
         with self.storage.cursor() as cursor:
             servers = apsw_helpers.query(cursor, '''
                 SELECT pid from servers
-                WHERE last_contact >= DATETIME('now', 'unixepoch', '-%s second')
+                WHERE last_contact >= DATETIME('now', '-%s second')
                 ORDER BY last_contact DESC
                 LIMIT 1
             ''' % (SERVER_TTL,))

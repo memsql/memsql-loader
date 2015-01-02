@@ -82,6 +82,8 @@ class Server(Command):
         self.logger.debug('Starting worker pool')
         self.pool = WorkerPool(num_workers=self.options.num_workers)
 
+        print 'MemSQL Loader Server running'
+
         loader_db_name = storage.MEMSQL_LOADER_DB
         has_valid_loader_db_conn = False
         while not self.exiting:

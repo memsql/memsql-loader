@@ -246,7 +246,7 @@ class TaskHandler(object):
                     last_contact=datetime(:now, 'unixepoch'),
                     update_count=update_count + 1,
                     steps=:steps,
-                    finished=:finished,
+                    finished=datetime(:finished, 'unixepoch'),
                     result=:result,
                     bytes_downloaded=:bytes_downloaded,
                     download_rate=:download_rate,

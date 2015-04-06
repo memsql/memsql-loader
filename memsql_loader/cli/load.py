@@ -353,12 +353,12 @@ Invalid command line options for load:
                 status_code = curl.getinfo(pycurl.HTTP_CODE)
                 if status_code != httplib.OK:
                     self.logger.error('HTTP status code %s when testing WebHDFS connection' % status_code)
-                    self.logger.error('Is your HDFS server running and is WebHDFS enabled?')
+                    self.logger.error('Make sure your HDFS server is running and WebHDFS is enabled and ensure that you can access the data at %s' % url)
                     sys.exit(1)
             except pycurl.error as e:
                 errno = e.args[0]
                 self.logger.error('libcurl error %s when testing WebHDFS connection' % errno)
-                self.logger.error('Is your HDFS server running and is WebHDFS enabled?')
+                self.logger.error('Make sure your HDFS server is running and WebHDFS is enabled and ensure that you can access the data at %s' % url)
                 sys.exit(1)
 
     def queue_job(self):

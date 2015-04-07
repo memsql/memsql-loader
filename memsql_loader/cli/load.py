@@ -134,6 +134,9 @@ class RunLoad(Command):
         subparser.add_argument('--no-daemon', default=False, action='store_true',
             help="Do not start the daemon process automatically if it's not running.")
 
+        subparser.add_argument('--skip-checks', default=False, action='store_true',
+            help="Skip various initialization checks, e.g. checking that we can connect to any HDFS hosts.")
+
     def ensure_bootstrapped(self):
         if not bootstrap.check_bootstrapped():
             bootstrap.bootstrap()
@@ -327,39 +330,41 @@ Invalid command line options for load:
                 sys.exit(1)
         elif path.scheme == 'hdfs':
             if self.job.spec.source.webhdfs_port is None:
-                self.self.logger.error('source.webhdfs_port must be defined for HDFS self.jobs')
+                self.logger.error('source.webhdfs_port must be defined for HDFS jobs')
                 sys.exit(1)
 
-            try:
-                # We try getting a content summary of the home directory for
-                # HDFS to make sure that we can connect to the WebHDFS server.
-                curl = pycurl.Curl()
+            if not self.options.skip_checks:
+                try:
+                    # We try getting a content summary of the home directory
+                    # for HDFS to make sure that we can connect to the WebHDFS
+                    # server.
+                    curl = pycurl.Curl()
 
-                url = webhdfs.get_webhdfs_url(
-                    self.job.spec.source.hdfs_host,
-                    self.job.spec.source.webhdfs_port,
-                    self.job.spec.source.hdfs_user, 'GETCONTENTSUMMARY', '')
+                    url = webhdfs.get_webhdfs_url(
+                        self.job.spec.source.hdfs_host,
+                        self.job.spec.source.webhdfs_port,
+                        self.job.spec.source.hdfs_user, 'GETCONTENTSUMMARY', '')
 
-                curl.setopt(pycurl.URL, url)
+                    curl.setopt(pycurl.URL, url)
 
-                def _check_hdfs_response(data):
-                    if 'It looks like you are making an HTTP request to a Hadoop IPC port' in data:
-                        self.logger.error(
-                            'You have provided an IPC port instead of the '
-                            'WebHDFS port for the webhdfs-port argument.')
+                    def _check_hdfs_response(data):
+                        if 'It looks like you are making an HTTP request to a Hadoop IPC port' in data:
+                            self.logger.error(
+                                'You have provided an IPC port instead of the '
+                                'WebHDFS port for the webhdfs-port argument.')
 
-                curl.setopt(pycurl.WRITEFUNCTION, _check_hdfs_response)
-                curl.perform()
-                status_code = curl.getinfo(pycurl.HTTP_CODE)
-                if status_code != httplib.OK:
-                    self.logger.error('HTTP status code %s when testing WebHDFS connection' % status_code)
+                    curl.setopt(pycurl.WRITEFUNCTION, _check_hdfs_response)
+                    curl.perform()
+                    status_code = curl.getinfo(pycurl.HTTP_CODE)
+                    if status_code != httplib.OK:
+                        self.logger.error('HTTP status code %s when testing WebHDFS connection' % status_code)
+                        self.logger.error('Make sure your HDFS server is running and WebHDFS is enabled and ensure that you can access the data at %s' % url)
+                        sys.exit(1)
+                except pycurl.error as e:
+                    errno = e.args[0]
+                    self.logger.error('libcurl error %s when testing WebHDFS connection' % errno)
                     self.logger.error('Make sure your HDFS server is running and WebHDFS is enabled and ensure that you can access the data at %s' % url)
                     sys.exit(1)
-            except pycurl.error as e:
-                errno = e.args[0]
-                self.logger.error('libcurl error %s when testing WebHDFS connection' % errno)
-                self.logger.error('Make sure your HDFS server is running and WebHDFS is enabled and ensure that you can access the data at %s' % url)
-                sys.exit(1)
 
     def queue_job(self):
         all_keys = list(self.job.get_files(s3_conn=self.s3_conn))

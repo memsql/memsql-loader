@@ -1,4 +1,4 @@
-2014-12-05 Version 2.0.1
+2015-04-08 Version 2.0.1
 
 	* Fixed issue with calculating server TTLs
 	* Added a status CLI command that checks if there are any running servers

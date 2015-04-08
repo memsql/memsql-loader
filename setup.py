@@ -46,6 +46,7 @@ setup(
         'pycurl==7.19.3.1',
         'prettytable==0.7.2',
         'pywebhdfs==0.2.4',
+        'requests==2.5.1',
     ],
     tests_require=[
         'docker-py==0.3.1',

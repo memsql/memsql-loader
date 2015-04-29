@@ -1,4 +1,5 @@
 import pycurl
+import subprocess
 import select
 import sys
 import threading
@@ -16,6 +17,7 @@ from pywebhdfs.webhdfs import PyWebHdfsClient
 import pywebhdfs.errors
 
 DOWNLOAD_TIMEOUT = 30
+SCRIPT_EXIT_TIMEOUT = 30
 
 class DownloadMetrics(object):
     def __init__(self, total_size):
@@ -97,6 +99,7 @@ class Downloader(threading.Thread):
         self.task = task
         self.fifo = fifo
         self.key = None
+        self.script_proc = None
 
         if task.data['scheme'] == 's3':
             self.is_anonymous = job.spec.source.aws_access_key is None or job.spec.source.aws_secret_key is None
@@ -173,7 +176,25 @@ class Downloader(threading.Thread):
                     curl.setopt(pycurl.SSL_VERIFYPEER, 0)
                     curl.setopt(pycurl.SSL_VERIFYHOST, 0)
                     curl.setopt(pycurl.CONNECTTIMEOUT, 30)
-                    curl.setopt(pycurl.WRITEFUNCTION, self._write_to_fifo(target_file))
+
+                    if self.job.spec.options.script is not None:
+                        self.script_proc = subprocess.Popen(
+                            ["/bin/bash", "-c", self.job.spec.options.script],
+                            stdout=target_file.fileno(),
+                            stdin=subprocess.PIPE)
+
+                        # check that script hasn't errored before downloading
+                        # NOTE: we wait here so that we can check if a script exits prematurely
+                        # if this is the case, we fail the job without requeueing
+                        time.sleep(1)
+                        if self.script_proc.poll() is not None:
+                            self.logger.error('Script `%s` exited prematurely with return code %d' % (self.job.spec.options.script, self.script_proc.returncode))
+                            raise WorkerException('Script `%s` exited prematurely with return code %d' % (self.job.spec.options.script, self.script_proc.returncode))
+
+                        curl.setopt(pycurl.WRITEFUNCTION, self._write_to_fifo(self.script_proc.stdin))
+                    else:
+                        curl.setopt(pycurl.WRITEFUNCTION, self._write_to_fifo(target_file))
+
                     if self.task.data['scheme'] == 'hdfs':
                         curl.setopt(pycurl.FOLLOWLOCATION, True)
 
@@ -187,9 +208,32 @@ class Downloader(threading.Thread):
                         # Catch HTTP client errors, e.g. 404:
                         if status_code >= 400 and status_code < 500:
                             raise WorkerException('HTTP status code %s for file %s' % (status_code, self.key.name))
+
+                        # If we're piping data through a script, catch timeouts and return codes
+                        if self.script_proc is not None:
+                            self.script_proc.stdin.close()
+                            for i in range(SCRIPT_EXIT_TIMEOUT):
+                                if self.script_proc.poll() is not None:
+                                    break
+
+                                time.sleep(1)
+                            else:
+                                self.logger.error('Script `%s` failed to exit...killing' % self.job.spec.options.script)
+                                self.script_proc.kill()
+                                raise WorkerException('Script `%s` failed to exit after %d seconds' % (self.job.spec.options.script, SCRIPT_EXIT_TIMEOUT))
+
+                            if self.script_proc.returncode != 0:
+                                self.logger.error('Script `%s` exited with return code %d' % (self.job.spec.options.script, self.script_proc.returncode))
+                                raise WorkerException('Script `%s` exited with return code %d' % (self.job.spec.options.script, self.script_proc.returncode))
                     finally:
                         with self.task.protect():
                             self.task.stop_step('download')
+
+                            if self.script_proc is not None and self.script_proc.returncode is not None:
+                                try:
+                                    self.script_proc.kill()
+                                except OSError as e:
+                                    self.logger.warn("Failed to kill script `%s`: %s" % (self.job.spec.options.script, str(e)))
             except pycurl.error as e:
                 errno = e.args[0]
                 if errno == pycurl.E_ABORTED_BY_CALLBACK and not self._should_exit:

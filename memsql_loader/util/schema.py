@@ -1,4 +1,5 @@
 import os
+import shlex
 import urlparse
 import voluptuous as V
 
@@ -65,6 +66,7 @@ def get_spec_validator():
         V.Required("file_id_column", default=None): V.Any(basestring, None),
         V.Required("non_local_load", default=False): bool,
         V.Required("duplicate_key_method", default="error"): V.Any("error", "replace", "ignore"),
+        V.Required("script", default=None): V.Any(basestring, None)
     })
 
     _db_schema = V.Schema({
@@ -187,4 +189,9 @@ def validate_spec(spec):
             if file_id_column in spec['options']['columns']:
                 raise V.Invalid('options.columns can not contain the file_id_column, it will be filled in by MemSQL-Loader',
                     path=[ 'options', 'columns' ])
+    if spec.options.script is not None:
+        try:
+            shlex.split(spec.options.script)
+        except ValueError as e:
+            raise V.Invalid('options.script is invalid: %s' % str(e), path=[ 'options', 'script' ])
     return spec

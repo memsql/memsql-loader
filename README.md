@@ -112,6 +112,13 @@ append `--print-spec` to the `./memsql-loader load` command. It will generate a 
 use with `--spec`. Any command line options that you provide along with `--spec` will override options
 in the spec file.
 
+Scripts
+-------
+
+You can also pipe files through a script before running LOAD DATA with the `--script` flag.
+
+    $ ./bin/memsql-loader load --database test --table test --delimiter ',' test.csv.lzma --script "lzma -d"
+
 TODO
 ====
 

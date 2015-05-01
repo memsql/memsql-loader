@@ -160,7 +160,7 @@ class Worker(multiprocessing.Process):
 
         try:
             while not self.exiting():
-                time.sleep(5)
+                time.sleep(0.5)
 
                 with task.protect():
                     self._update_task(task, downloader)

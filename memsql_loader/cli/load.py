@@ -114,6 +114,9 @@ class RunLoad(Command):
 
         load_data_options.add_argument('--non-local-load', default=None, action='store_true', help='Use the LOAD DATA command instead of LOAD DATA LOCAL.')
 
+        subparser.add_argument('--script', type=str, default=None,
+            help="Path to script or binary to process files before passing to LOAD DATA")
+
         subparser.add_argument('--spec', type=str, default=None,
             help="Path to JSON spec file for the load. Command line options override values in the spec.")
         subparser.add_argument('--print-spec', default=False, action='store_true',

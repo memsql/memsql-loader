@@ -129,7 +129,7 @@ class Worker(multiprocessing.Process):
             if self._should_delete(job, task):
                 self.logger.info('Waiting for DELETE lock before cleaning up rows from an earlier load')
                 try:
-                    while not self.worker_lock.acquire(block=True, timeout=5):
+                    while not self.worker_lock.acquire(block=True, timeout=0.5):
                         if self.exiting() or not task.valid():
                             raise ExitingException()
                         task.ping()

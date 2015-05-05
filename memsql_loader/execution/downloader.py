@@ -150,7 +150,12 @@ class Downloader(threading.Thread):
             try:
                 # This is at the top so that any exceptions that occur will
                 # emit a KILL QUERY due to fifo.open()
-                with self.fifo.open() as target_file:
+
+                # if we are piping through a script, the fifo should block
+                # because the downloader is polling the script's stdin instead
+                # of the fifo
+                blocking = self.job.spec.options.script is not None
+                with self.fifo.open(blocking=blocking) as target_file:
                     # allocate an URL for the target file
                     if self.task.data['scheme'] == 's3':
                         if self.is_anonymous:
@@ -241,7 +246,7 @@ class Downloader(threading.Thread):
                         with self.task.protect():
                             self.task.stop_step('download')
 
-                            if self.script_proc is not None and self.script_proc.returncode is not None:
+                            if self.script_proc is not None and self.script_proc.returncode is None:
                                 try:
                                     self.script_proc.kill()
                                 except OSError as e:

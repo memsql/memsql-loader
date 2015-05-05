@@ -26,9 +26,11 @@ class FIFO(object):
         self.cleanup()
 
     @contextmanager
-    def open(self):
+    def open(self, blocking=False):
         """ This returns a file descriptor, not a file object. The
         file descriptor must be written to with os.write()
+
+        :param blocking: If True, the FIFO will block on write
         """
 
         assert not self._closed, 'FIFO has already been cleaned up'
@@ -39,7 +41,7 @@ class FIFO(object):
         # drop all the data.
         with open(self.path, 'wb') as fifofile:
             try:
-                fcntl.fcntl(fifofile.fileno(), fcntl.F_SETFL, os.O_NONBLOCK)
+                fcntl.fcntl(fifofile.fileno(), fcntl.F_SETFL, 0 if blocking else os.O_NONBLOCK)
                 yield fifofile
             except:
                 self.abort_reader()

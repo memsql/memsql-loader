@@ -26,6 +26,6 @@ class WorkerPool(object):
         [worker.join() for worker in self._workers if worker.is_alive()]
 
     def _start_worker(self, index):
-        worker = Worker(index, self.pid, self._worker_lock)
+        worker = Worker(index * 0.1, self.pid, self._worker_lock)
         worker.start()
         return worker

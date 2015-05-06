@@ -64,7 +64,7 @@ class Worker(multiprocessing.Process):
 
         try:
             while not self.exiting():
-                time.sleep(random.random() * 5)
+                time.sleep(random.random() * 0.5)
                 task = self.tasks.start()
 
                 if task is not None:
@@ -120,7 +120,7 @@ class Worker(multiprocessing.Process):
         # initially sleeping in the order they were started and then
         # randomly sleeping after that point
         time.sleep(self.worker_sleep)
-        self.worker_sleep = 5 * random.random()
+        self.worker_sleep = 0.5 * random.random()
 
         if self.exiting() or not task.valid():
             raise ExitingException()
@@ -290,7 +290,7 @@ class Worker(multiprocessing.Process):
             if not t.is_alive():
                 break
 
-            time.sleep(5)
+            time.sleep(0.5)
         else:
             # delete thread didn't finish on its own
             self.kill_delete_query_if_exists(job.spec.connection, conn.thread_id())

@@ -45,7 +45,7 @@ setup(
         'boto==2.28.0',
         'pycurl==7.19.3.1',
         'prettytable==0.7.2',
-        'pywebhdfs==0.2.4',
+        'pywebhdfs==0.3.2',
         'requests==2.5.1',
     ],
     tests_require=[

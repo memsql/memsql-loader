@@ -365,12 +365,22 @@ class HDFSGlobber(Globber):
         path = self._normalize_unicode(path)
 
         if path in self.saved_fileinfo:
+            if 'etag' not in self.saved_fileinfo[path]:
+                try:
+                    checksuminfo = self.client.get_file_checksum(path)['FileChecksum']
+                    self.saved_fileinfo[path]['etag'] = checksuminfo['bytes']
+                except pywebhdfs.errors.PyWebHdfsException:
+                    self.saved_fileinfo[path]['etag'] = None
             return self.saved_fileinfo[path]
         else:
             try:
+
                 fileinfo = self.client.get_file_dir_status(path)['FileStatus']
                 fileinfo['path'] = path
-            except pywebhdfs.errors.FileNotFound:
+
+                checksuminfo = self.client.get_file_checksum(path)['FileChecksum']
+                fileinfo['etag'] = checksuminfo['bytes']
+            except pywebhdfs.errors.PyWebHdfsException:
                 return None
             if fileinfo:
                 self.saved_fileinfo[fileinfo['path']] = fileinfo

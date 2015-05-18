@@ -1,3 +1,8 @@
+2015-05-18 Version 2.0.2
+
+	* Improved performance for jobs with lots of tasks
+	* Added a --script option for transforming data on the fly
+
 2015-04-08 Version 2.0.1
 
 	* Fixed issue with calculating server TTLs

@@ -400,16 +400,16 @@ Invalid command line options for load:
             self.tasks = Tasks()
             self.servers = Servers()
 
-            s3_keys_to_check = []
+            etags = []
             for key in all_keys:
-                if key.scheme == 's3':
-                    s3_keys_to_check.append(key.bucket.get_key(key.name))
+                if key.scheme in ['s3', 'hdfs']:
+                    etags.append(key.etag)
 
-            if s3_keys_to_check and not self.options.force:
+            if etags and not self.options.force:
                 database, table = spec.target.database, spec.target.table
                 host, port = spec.connection.host, spec.connection.port
                 competing_job_ids = [j.id for j in self.jobs.query_target(host, port, database, table)]
-                md5_map = self.get_current_tasks_md5_map(s3_keys_to_check, competing_job_ids)
+                md5_map = self.get_current_tasks_md5_map(etags, competing_job_ids)
             else:
                 # For files loading on the filesystem, we are not going to MD5 files
                 # for performance reasons. We are also basing this on the assumption
@@ -450,8 +450,8 @@ Invalid command line options for load:
             # the above try/except block and not the original exception.
             raise exc_info[0], exc_info[1], exc_info[2]
 
-    def get_current_tasks_md5_map(self, keys, bad_job_ids):
-        if not keys:
+    def get_current_tasks_md5_map(self, etags, bad_job_ids):
+        if not etags:
             return {}
         job_ids_string = ','.join("'%s'" % job_id for job_id in bad_job_ids)
 
@@ -463,9 +463,7 @@ Invalid command line options for load:
                 [ shared.TaskState.QUEUED, shared.TaskState.RUNNING, shared.TaskState.SUCCESS ],
                 extra_predicate=(predicate_sql, {}))
 
-        matching_tasks = []
-        md5_list = [ key.etag for key in keys ]
-        matching_tasks = self.inlist_split(md5_list, _get_matching_tasks, [])
+        matching_tasks = self.inlist_split(filter(None, etags), _get_matching_tasks, [])
 
         md5_map = defaultdict(lambda: [])
         for task in matching_tasks:

@@ -153,7 +153,7 @@ class Job(object):
                         yield AttrDict({
                             'scheme': 'hdfs',
                             'name': fileinfo['path'],
-                            'etag': None,
+                            'etag': fileinfo['etag'],
                             'size': fileinfo['length'],
                             'bucket': None
                         })

@@ -1,3 +1,5 @@
+        * Fixed load command to use HDFS file checksums to skip unmodified files
+
 2015-05-18 Version 2.0.2
 
 	* Improved performance for jobs with lots of tasks

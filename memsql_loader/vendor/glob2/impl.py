@@ -257,32 +257,32 @@ class S3Globber(Globber):
         self.memoized_queries = {}
         self.saved_keys = {}
 
-    def _run_list(self, prefix, delimiter):
+    def _run_list(self, prefix):
         """Runs a list query. Uses memoized_queries where possible"""
-
         # AWS has weird semantics for listing '/'. We have to list
         # it as '' instead. This logic tends to conflict with glob2's
         # understanding of paths, so we normalize out this bump here.
         if prefix == '/':
             prefix = ''
 
-        if (prefix, delimiter) in self.memoized_queries:
-            return self.memoized_queries[(prefix, delimiter)]
+        if prefix in self.memoized_queries:
+            return self.memoized_queries[prefix]
 
-        # print "RUNNING LIST QUERY list(prefix=%s, delimiter=%s)" % (prefix, delimiter)
-        ret = [x for x in self.bucket.list(prefix=prefix, delimiter=delimiter)]
+        # print "RUNNING LIST QUERY list(prefix=%s, delimiter=%s)" % (prefix, '/')
+        ret = [x for x in self.bucket.list(prefix=prefix, delimiter='/')]
         for x in ret:
             if not x.name.endswith('/'):
                 self.saved_keys[x.name] = x
-        self.memoized_queries[(prefix, delimiter)] = ret
+                self.memoized_queries[x.name] = [ x ]
+        self.memoized_queries[prefix] = ret
         return ret
 
     def get_key(self, keyname):
         """Returns a key. Uses memoized_keys where possible"""
         keyname = self._normalize_unicode(keyname)
 
-        if keyname in self.memoized_queries:
-            return self.memoized_queries[keyname]
+        if keyname in self.saved_keys:
+            return self.saved_keys[keyname]
         else:
             key = self.bucket.get_key(keyname)
             if key:
@@ -304,10 +304,12 @@ class S3Globber(Globber):
         # We strip the '/' off of name if it's there
         # to help os.path.split()"""
         parent = self._normalize_to_dirname(os.path.split(name.strip('/'))[0])
-        if (parent, '/') not in self.memoized_queries:
-            iterator = self._run_list(name.rstrip('/'), '/')
+        if not parent:
+            return self.get_key('')
+        if parent not in self.memoized_queries:
+            iterator = self._run_list(name.rstrip('/'))
         else:
-            iterator = self._run_list(parent, '/')
+            iterator = self._run_list(parent)
         for x in iterator:
             if x.name == name:
                 return x
@@ -317,8 +319,12 @@ class S3Globber(Globber):
         prefix = self._normalize_unicode(prefix)
 
         normalized_dirname = self._normalize_to_dirname(dirname)
+
+        if not self.isdir(normalized_dirname):
+            raise OSError("%s is not a directory" % normalized_dirname)
+
         full_dirname = os.path.join(normalized_dirname, prefix)
-        ret = [os.path.split(x.name.rstrip('/'))[1] for x in self._run_list(full_dirname, '/') \
+        ret = [os.path.split(x.name.rstrip('/'))[1] for x in self._run_list(full_dirname) \
             if not (x.name.endswith('/') and self._normalize_to_dirname(x.name) == normalized_dirname)]
         # print "Listing dirname (%s -> %s) prefix (%s) result %s" % (dirname, normalized_dirname, prefix, ret)
         return ret
@@ -326,6 +332,9 @@ class S3Globber(Globber):
     def isdir(self, dirname):
         dirname = self._normalize_unicode(dirname)
         dirname = self._normalize_to_dirname(dirname)
+
+        if dirname == '/':
+            return True
 
         key = self._find_in_parent_dir(dirname)
         if key:
@@ -374,14 +383,16 @@ class HDFSGlobber(Globber):
             return self.saved_fileinfo[path]
         else:
             try:
-
                 fileinfo = self.client.get_file_dir_status(path)['FileStatus']
                 fileinfo['path'] = path
+            except pywebhdfs.errors.PyWebHdfsException:
+                return None
 
+            try:
                 checksuminfo = self.client.get_file_checksum(path)['FileChecksum']
                 fileinfo['etag'] = checksuminfo['bytes']
             except pywebhdfs.errors.PyWebHdfsException:
-                return None
+                pass
             if fileinfo:
                 self.saved_fileinfo[fileinfo['path']] = fileinfo
             return fileinfo
@@ -389,6 +400,7 @@ class HDFSGlobber(Globber):
     def isdir(self, dirname):
         dirname = self._normalize_unicode(dirname)
         dirname = self._normalize_to_dirname(dirname)
+
         fileinfo = self._find_in_parent_dir(dirname)
         if fileinfo:
             return fileinfo['type'] == 'DIRECTORY'
@@ -437,6 +449,10 @@ class HDFSGlobber(Globber):
         """Tries to take advantage of the fact that we probably queried the parent."""
         name = self._normalize_unicode(name)
         parent = os.path.split(name.rstrip('/'))[0]
+        if not parent:
+            x = self.get_fileinfo(name.rstrip('/'))
+            return x
+
         ret = self._run_list(parent)
         for fileinfo in ret:
             path = fileinfo['path']
@@ -451,6 +467,10 @@ class HDFSGlobber(Globber):
         dirname = self._normalize_unicode(dirname)
 
         normalized_dirname = self._normalize_to_dirname(dirname)
+
+        if not self.isdir(normalized_dirname):
+            raise OSError("%s is not a directory" % normalized_dirname)
+
         ret = []
         for x in self._run_list(normalized_dirname):
             # We don't want to include the directory that we're listing.

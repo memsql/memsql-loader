@@ -114,7 +114,14 @@ class Worker(multiprocessing.Process):
         if job is None:
             raise WorkerException('Failed to find job with ID %s' % job_id)
 
-        fifo = FIFO(gzip=task.data['key_name'].endswith('.gz'))
+        # If this is a gzip file, we add .gz to the named pipe's name so that
+        # MemSQL knows to decompress it unless we're piping this into a script,
+        # in which case we do the decompression here in-process.
+        if job.spec.options.script is not None:
+            gzip = False
+        else:
+            gzip = task.data['key_name'].endswith('.gz')
+        fifo = FIFO(gzip=gzip)
 
         # reduces the chance of synchronization between workers by
         # initially sleeping in the order they were started and then

@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 import os
+import zlib
 
 from boto.exception import S3ResponseError
 from boto.s3.connection import S3Connection
@@ -100,6 +101,8 @@ class Downloader(threading.Thread):
         self.fifo = fifo
         self.key = None
         self.script_proc = None
+        self.decompress_obj = None
+        self.pycurl_callback_exception = None
 
         if task.data['scheme'] == 's3':
             self.is_anonymous = job.spec.source.aws_access_key is None or job.spec.source.aws_secret_key is None
@@ -191,6 +194,15 @@ class Downloader(threading.Thread):
                             self.logger.error('Script `%s` exited prematurely with return code %d' % (self.job.spec.options.script, self.script_proc.returncode))
                             raise WorkerException('Script `%s` exited prematurely with return code %d' % (self.job.spec.options.script, self.script_proc.returncode))
 
+                        # If we're piping data into a script and this file is
+                        # a gzipped file, we'll decompress the data ourselves
+                        # before piping it into the script.
+                        if self.task.data['key_name'].endswith('.gz'):
+                            # Set the window bits during decompression to
+                            # zlib.MAX_WBITS | 32 tells the zlib library to
+                            # automatically detect gzip headers.
+                            self.decompress_obj = zlib.decompressobj(zlib.MAX_WBITS | 32)
+
                         curl.setopt(pycurl.WRITEFUNCTION, self._write_to_fifo(self.script_proc.stdin))
                     else:
                         curl.setopt(pycurl.WRITEFUNCTION, self._write_to_fifo(target_file))
@@ -236,7 +248,9 @@ class Downloader(threading.Thread):
                                     self.logger.warn("Failed to kill script `%s`: %s" % (self.job.spec.options.script, str(e)))
             except pycurl.error as e:
                 errno = e.args[0]
-                if errno == pycurl.E_ABORTED_BY_CALLBACK and not self._should_exit:
+                if errno == pycurl.E_WRITE_ERROR and self.pycurl_callback_exception is not None:
+                    raise self.pycurl_callback_exception
+                elif errno == pycurl.E_ABORTED_BY_CALLBACK and not self._should_exit:
                     self.logger.warn('Download failed...requeueing')
                     # Caught by the outer `except Exception as e`
                     raise RequeueTask()
@@ -270,6 +284,18 @@ class Downloader(threading.Thread):
     def _write_to_fifo(self, target_file):
         def _write_to_fifo_helper(data):
             to_write = data
+            if self.decompress_obj is not None:
+                try:
+                    to_write = self.decompress_obj.decompress(to_write)
+                except zlib.error as e:
+                    self.terminate()
+                    # pycurl will just raise pycurl.error if this function
+                    # raises an exception, so we also need to set the exception
+                    # on the Downloader object so that we can check it and
+                    # re-raise it above.
+                    self.pycurl_callback_exception = WorkerException(
+                        'Could not decompress data: %s' % str(e))
+                    raise self.pycurl_callback_exception
             while len(to_write) > 0:
                 # First step is to wait until we can write to the FIFO.
                 #

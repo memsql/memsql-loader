@@ -1,4 +1,8 @@
+2015-05-27 Version 2.0.3
         * Fixed load command to use HDFS file checksums to skip unmodified files
+        * Decompressed gzipped files before passing them to external scripts
+        * Fixed a few bugs with external scripts
+        * Improved performance when working with very large S3 buckets
 
 2015-05-18 Version 2.0.2
 

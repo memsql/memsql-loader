@@ -248,15 +248,16 @@ class Downloader(threading.Thread):
                                     self.logger.warn("Failed to kill script `%s`: %s" % (self.job.spec.options.script, str(e)))
             except pycurl.error as e:
                 errno = e.args[0]
-                if errno == pycurl.E_WRITE_ERROR and self.pycurl_callback_exception is not None:
-                    raise self.pycurl_callback_exception
-                elif errno == pycurl.E_ABORTED_BY_CALLBACK and not self._should_exit:
-                    self.logger.warn('Download failed...requeueing')
-                    # Caught by the outer `except Exception as e`
-                    raise RequeueTask()
-                else:
-                    # Caught by the outer `except pycurl.error as e`
-                    raise
+                if errno in (pycurl.E_WRITE_ERROR, pycurl.E_ABORTED_BY_CALLBACK):
+                    if self.pycurl_callback_exception is not None:
+                        raise self.pycurl_callback_exception
+                    elif self._should_exit:
+                        self.logger.warn('Download failed...requeueing')
+                        # Caught by the outer `except Exception as e`
+                        raise RequeueTask()
+
+                # Caught by the outer `except pycurl.error as e`
+                raise
         except pycurl.error as e:
             errno = e.args[0]
             self._set_error(ConnectionException('libcurl error #%d. Lookup error here: http://curl.haxx.se/libcurl/c/libcurl-errors.html' % errno))
@@ -284,35 +285,45 @@ class Downloader(threading.Thread):
     def _write_to_fifo(self, target_file):
         def _write_to_fifo_helper(data):
             to_write = data
-            if self.decompress_obj is not None:
-                try:
-                    to_write = self.decompress_obj.decompress(to_write)
-                except zlib.error as e:
-                    self.terminate()
-                    # pycurl will just raise pycurl.error if this function
-                    # raises an exception, so we also need to set the exception
-                    # on the Downloader object so that we can check it and
-                    # re-raise it above.
-                    self.pycurl_callback_exception = WorkerException(
-                        'Could not decompress data: %s' % str(e))
-                    raise self.pycurl_callback_exception
-            while len(to_write) > 0:
-                # First step is to wait until we can write to the FIFO.
-                #
-                # Wait for half of the download timeout for the FIFO to become open
-                # for writing.  While we're doing this, ping the download metrics
-                # so that the worker doesn't assume this download has hung.
-                is_writable = False
-                while not is_writable:
-                    self.metrics.ping()
-                    timeout = DOWNLOAD_TIMEOUT / 2
-                    _, writable_objects, _ = select.select(
-                        [ ], [ target_file ], [ ], timeout)
-                    is_writable = bool(writable_objects)
 
-                # Then, we write as much as we can within this opportunity to write
-                written_bytes = os.write(target_file.fileno(), to_write)
-                assert written_bytes >= 0, "Expect os.write() to return non-negative numbers"
-                to_write = to_write[written_bytes:]
+            try:
+                if self.decompress_obj is not None:
+                    to_write = self.decompress_obj.decompress(to_write)
+                while len(to_write) > 0:
+                    # First step is to wait until we can write to the FIFO.
+                    #
+                    # Wait for half of the download timeout for the FIFO to become open
+                    # for writing.  While we're doing this, ping the download metrics
+                    # so that the worker doesn't assume this download has hung.
+                    is_writable = False
+                    while not is_writable:
+                        self.metrics.ping()
+                        timeout = DOWNLOAD_TIMEOUT / 2
+                        _, writable_objects, _ = select.select(
+                            [ ], [ target_file ], [ ], timeout)
+                        is_writable = bool(writable_objects)
+
+                    # Then, we write as much as we can within this opportunity to write
+                    written_bytes = os.write(target_file.fileno(), to_write)
+                    assert written_bytes >= 0, "Expect os.write() to return non-negative numbers"
+                    to_write = to_write[written_bytes:]
+            except zlib.error as e:
+                self.terminate()
+                # pycurl will just raise pycurl.error if this function
+                # raises an exception, so we also need to set the exception
+                # on the Downloader object so that we can check it and
+                # re-raise it above.
+                self.pycurl_callback_exception = WorkerException(
+                    'Could not decompress data: %s' % str(e))
+                raise self.pycurl_callback_exception
+            except OSError as e:
+                if self.script_proc is not None and self.script_proc.poll() is not None:
+                    self.terminate()
+                    self.pycurl_callback_exception = WorkerException(
+                        'Script `%s` exited during download with return code %d' %
+                        (self.job.spec.options.script, self.script_proc.returncode))
+                    raise self.pycurl_callback_exception
+                else:
+                    raise
 
         return _write_to_fifo_helper

@@ -374,13 +374,6 @@ Invalid command line options for load:
 
         paths = self.job.spec.source.paths
 
-        for key in all_keys:
-            non_local_load = self.job.spec.options.non_local_load
-            script = self.job.spec.options.script
-            if not non_local_load and script is None and key.name.endswith('.gz'):
-                self.logger.error('Cannot load %s because it is a gzipped file. Use --non-local-load to load gzipped files' % key.name)
-                sys.exit(1)
-
         if self.options.dry_run:
             print "DRY RUN SUMMARY:"
             print "----------------"

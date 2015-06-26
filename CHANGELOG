@@ -1,3 +1,6 @@
+2015-06-26 Version 2.0.4
+        * Allowed gzipped files to be loaded even if --non-local-load is not specified
+
 2015-05-27 Version 2.0.3
         * Fixed load command to use HDFS file checksums to skip unmodified files
         * Decompressed gzipped files before passing them to external scripts

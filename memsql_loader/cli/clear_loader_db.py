@@ -4,6 +4,7 @@ import sys
 
 from memsql_loader.util import cli_utils
 from memsql_loader.util.command import Command
+from memsql_loader.loader_db.servers import Servers
 from memsql_loader.loader_db.storage import LoaderStorage
 
 
@@ -13,7 +14,16 @@ class ClearLoaderDb(Command):
         subparser = subparsers.add_parser('clear-loader-db', help="Deletes the database containing MemSQL Loader's queued, running, and finished jobs.")
         subparser.set_defaults(command=ClearLoaderDb)
 
+        subparser.add_argument('-f', '--force', help='Clear the loader database even if the MemSQL Loader server is running', action='store_true')
+
     def run(self):
+        if not self.options.force:
+            self.servers = Servers()
+            online_servers = self.servers.online_servers()
+            if online_servers:
+                print 'Please stop all currently-running servers with stop-server before deleting the MemSQL Loader database.'
+                sys.exit(1)
+
         prompt = 'Are you sure you want to delete the MemSQL Loader database?\nThe database contains queued, running, and finished jobs.'
         if not cli_utils.confirm(prompt, default=False):
             print 'Exiting.'

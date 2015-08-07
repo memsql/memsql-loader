@@ -7,6 +7,10 @@ from memsql_loader.util.attr_dict import AttrDict
 from memsql_loader.util import log
 from memsql_loader.vendor import glob2
 
+class InvalidKeyException(Exception):
+    pass
+
+
 class LoadPath(object):
     def __init__(self, path):
         self.path = path
@@ -140,6 +144,11 @@ def get_command_line_mapping(all_keys):
 
 def build_spec_recursive(logger, options, base_spec, validator, parent_keys):
     ret = {}
+    valid_keys = set([ str(k) for k in validator.schema.keys() ])
+    for key in base_spec.keys():
+        if key not in valid_keys:
+            raise InvalidKeyException("%s is not a valid key" % key)
+
     for key, val in validator.schema.items():
         key_s = str(key)
         full_key_path = parent_keys + [key]

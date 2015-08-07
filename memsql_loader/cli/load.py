@@ -202,7 +202,11 @@ class RunLoad(Command):
             password = getpass.getpass('Enter password: ')
             self.options.password = password
 
-        merged_spec = schema.build_spec(base_spec, self.options)
+        try:
+            merged_spec = schema.build_spec(base_spec, self.options)
+        except schema.InvalidKeyException as e:
+            self.logger.error(str(e))
+            sys.exit(1)
 
         # only pull the AWS arguments from the command line if there is
         # at least one S3 path. This is more of a UX thing, as having them

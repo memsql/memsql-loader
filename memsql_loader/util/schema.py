@@ -31,7 +31,7 @@ class LoadPath(object):
             # cannot use os.path.join because of the starting /
             self.pattern = parsed.netloc + parsed.path
         else:
-            raise V.Invalid("Unknown file scheme %s" % parsed.scheme)
+            raise V.Invalid("Unknown file scheme %s" % parsed.scheme, path=[ 'source', 'paths' ])
 
         if self.scheme == 'file' and '|' in self.pattern:
             raise V.Invalid("OR (|) operators are not supported in file patterns", path=[ 'source', 'paths' ])

@@ -1,8 +1,8 @@
-from memsql_loader.loader_db import jobs, tasks, servers
+from memsql_loader.loader_db import jobs, tasks
 from memsql_loader.loader_db import storage
 from memsql_loader.util import apsw_helpers, log
 
-MODELS = { 'jobs': jobs.Jobs, 'tasks': tasks.Tasks, 'servers': servers.Servers }
+MODELS = { 'jobs': jobs.Jobs, 'tasks': tasks.Tasks }
 
 def check_bootstrapped():
     loader_storage = storage.LoaderStorage()

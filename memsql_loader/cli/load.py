@@ -13,9 +13,8 @@ from memsql_loader.cli.server import ServerProcess
 from memsql_loader.db import load_data, pool
 from memsql_loader.loader_db.jobs import Jobs, Job
 from memsql_loader.loader_db.tasks import Tasks
-from memsql_loader.loader_db.servers import Servers
 from memsql_loader.loader_db.storage import LoaderStorage
-from memsql_loader.util import bootstrap, log, db_utils, cli_utils, schema, webhdfs
+from memsql_loader.util import bootstrap, log, db_utils, cli_utils, schema, webhdfs, servers
 from memsql_loader.util import super_json as json
 from memsql_loader.util.command import Command
 from simplejson import JSONDecodeError
@@ -402,7 +401,6 @@ Invalid command line options for load:
             self.jobs.save(self.job)
 
             self.tasks = Tasks()
-            self.servers = Servers()
 
             etags = []
             for key in all_keys:
@@ -435,7 +433,7 @@ Invalid command line options for load:
             else:
                 self.logger.info("Successfully queued job with id: %s", self.job.id)
 
-                if not self.servers.online_servers():
+                if not servers.is_server_running():
                     self.start_server()
 
                 if self.options.sync:

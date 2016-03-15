@@ -5,7 +5,7 @@ import signal
 import sys
 
 from memsql_loader.util.command import Command
-from memsql_loader.loader_db.servers import Servers
+from memsql_loader.util import servers
 
 class StopServer(Command):
     @staticmethod
@@ -14,15 +14,12 @@ class StopServer(Command):
         subparser.set_defaults(command=StopServer)
 
     def run(self):
-        self.servers = Servers()
-        online_servers = self.servers.online_servers()
-        if not online_servers:
+        if not servers.is_server_running():
             print 'No currently running servers'
             sys.exit(0)
-        for row in online_servers:
-            pid = row.pid
-            try:
-                os.kill(pid, signal.SIGQUIT)
-                print 'Stopped server with PID %s' % pid
-            except os.error as e:
-                print 'Error killing server with PID %s: %s' % (pid, e)
+        pid = servers.get_server_pid()
+        try:
+            os.kill(pid, signal.SIGQUIT)
+            print 'Stopped server with PID %s' % pid
+        except os.error as e:
+            print 'Error killing server with PID %s: %s' % (pid, e)

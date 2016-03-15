@@ -4,11 +4,10 @@ from memsql_loader.util.command import Command
 from memsql_loader.util import log, cli_utils
 from memsql_loader.execution.worker_pool import WorkerPool
 from memsql_loader.db import pool
-from memsql_loader.loader_db.servers import Servers
 from memsql_loader.loader_db import storage
 from memsql_loader.util.daemonize import daemonize
 from memsql_loader.util.setuser import setuser
-from memsql_loader.util import bootstrap
+from memsql_loader.util import bootstrap, servers
 import argparse
 import multiprocessing
 import time
@@ -63,6 +62,10 @@ class Server(Command):
                 self.logger.error('failed to switch to user %s' % self.options.set_user)
                 sys.exit(1)
 
+        if servers.is_server_running():
+            self.logger.error('A MemSQL Loader server is already running.')
+            sys.exit(1)
+
         if self.options.daemonize:
             # ensure connection pool forks from daemon
             pool.close_connections()
@@ -71,8 +74,7 @@ class Server(Command):
             pool.recreate_pool()
 
         # record the fact that we've started successfully
-        self.servers = Servers()
-        self.servers.ping()
+        servers.write_pid_file()
 
         if self.options.num_workers > WORKER_WARN_THRESHOLD and not self.options.force_workers:
             if not cli_utils.confirm('Are you sure you want to start %d workers? This is potentially dangerous.' % self.options.num_workers, default=False):
@@ -91,7 +93,6 @@ class Server(Command):
                 if bootstrap.check_bootstrapped():
                     has_valid_loader_db_conn = True
                     self.pool.poll()
-                    self.servers.ping()
                     time.sleep(1)
                 else:
                     if has_valid_loader_db_conn:
@@ -112,6 +113,5 @@ class Server(Command):
     def stop(self, unused_signal=None, unused_frame=None):
         self.pool.stop()
         pool.close_connections()
-        if bootstrap.check_bootstrapped():
-            self.servers.server_stop()
+        servers.delete_pid_file()
         sys.exit(0)

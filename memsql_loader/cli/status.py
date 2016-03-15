@@ -3,7 +3,7 @@
 import sys
 
 from memsql_loader.util.command import Command
-from memsql_loader.loader_db.servers import Servers
+from memsql_loader.util import servers
 
 class Status(Command):
     @staticmethod
@@ -12,9 +12,7 @@ class Status(Command):
         subparser.set_defaults(command=Status)
 
     def run(self):
-        self.servers = Servers()
-        online_servers = self.servers.online_servers()
-        if online_servers:
+        if servers.is_server_running():
             print 'A MemSQL Loader server is currently running.'
             sys.exit(0)
         else:

@@ -37,5 +37,8 @@ def is_server_running():
         # and it will raise an exception if the process does not exist.
         os.kill(pid, 0)
         return True
-    except OSError:
+    except OSError as e:
+        # This means that the process exists, but is not owned by us.
+        if e.errno == errno.EPERM:
+            return True
         return False

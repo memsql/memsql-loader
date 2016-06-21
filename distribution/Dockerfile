@@ -41,11 +41,11 @@ RUN wget -q --no-check-certificate -O /tmp/python-2.7.8.tar.gz http://www.python
     make -j 12 && make altinstall
 
 # install latest setuptools
-RUN wget -q --no-check-certificate -O /tmp/ez_setup.py https://bitbucket.org/pypa/setuptools/raw/bootstrap/ez_setup.py && \
+RUN wget -q --no-check-certificate -O /tmp/ez_setup.py https://bootstrap.pypa.io/ez_setup.py && \
     cd /tmp && /usr/local/bin/python2.7 /tmp/ez_setup.py --insecure
 
 # install latest pip
-RUN wget -q --no-check-certificate -O /tmp/get-pip.py https://raw.github.com/pypa/pip/master/contrib/get-pip.py && \
+RUN wget -q --no-check-certificate -O /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py && \
     /usr/local/bin/python2.7 /tmp/get-pip.py
 
 # install pip 1.5.6

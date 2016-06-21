@@ -19,7 +19,9 @@ WORKER_WARN_THRESHOLD = 100
 # This class is used in the load command to start a server with default
 # arguments in a separate process.
 class ServerProcess(multiprocessing.Process):
-    def __init__(self, daemonize=False):
+    def __init__(self, daemonize=False, num_workers=None, idle_timeout=None):
+        self.num_workers = num_workers
+        self.idle_timeout = idle_timeout
         super(ServerProcess, self).__init__()
         self.daemonize = daemonize
 
@@ -28,7 +30,14 @@ class ServerProcess(multiprocessing.Process):
         subparsers = parser.add_subparsers(parser_class=argparse.ArgumentParser)
         Server.configure(parser, subparsers)
         log.configure(parser)
-        options = parser.parse_args(['server'])
+        fake_args = ['server']
+        if self.num_workers is not None:
+            fake_args.append('--num-workers')
+            fake_args.append(str(self.num_workers))
+        if self.idle_timeout is not None:
+            fake_args.append('--idle-timeout')
+            fake_args.append(str(self.idle_timeout))
+        options = parser.parse_args(fake_args)
         options.daemonize = self.daemonize
         Server(options)
 
@@ -41,6 +50,8 @@ class Server(Command):
         subparser.add_argument('--set-user', default=None, help='Specify a user for MemSQL Loader to use.')
         subparser.add_argument('-n', '--num-workers', default=None, type=int,
             help='Number of workers to run; equates to the number of loads that can be run in parallel.')
+        subparser.add_argument('-i', '--idle-timeout', default=None, type=int,
+            help='Seconds before server automatically shuts down; defaults to never.')
         subparser.add_argument('-f', '--force-workers', action='store_true',
             help='Ignore warnings on number of workers. This is potentially dangerous!')
 
@@ -55,6 +66,14 @@ class Server(Command):
 
         self.exiting = False
         self.logger = log.get_logger('Server')
+
+        if self.options.num_workers is not None and self.options.num_workers < 1:
+            self.logger.error('number of workers must be a positive integer')
+            sys.exit(1)
+
+        if self.options.idle_timeout is not None and self.options.idle_timeout < 1:
+            self.logger.error('idle timeout must be a positive integer')
+            sys.exit(1)
 
         # switch over to the correct user as soon as possible
         if self.options.set_user is not None:
@@ -82,7 +101,7 @@ class Server(Command):
                 sys.exit(1)
 
         self.logger.debug('Starting worker pool')
-        self.pool = WorkerPool(num_workers=self.options.num_workers)
+        self.pool = WorkerPool(num_workers=self.options.num_workers, idle_timeout=self.options.idle_timeout)
 
         print 'MemSQL Loader Server running'
 
@@ -92,8 +111,11 @@ class Server(Command):
             try:
                 if bootstrap.check_bootstrapped():
                     has_valid_loader_db_conn = True
-                    self.pool.poll()
-                    time.sleep(1)
+                    if self.pool.poll():
+                        time.sleep(1)
+                    else:
+                        self.logger.info('Server has been idle for more than the idle timeout (%d seconds). Stopping.', self.options.idle_timeout)
+                        self.exit()
                 else:
                     if has_valid_loader_db_conn:
                         self.logger.warn('The %s database is unreachable or not ready; stopping worker pool', loader_db_name)

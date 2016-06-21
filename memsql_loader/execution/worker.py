@@ -29,6 +29,7 @@ class Worker(multiprocessing.Process):
         self.worker_id = uuid.uuid1().hex[:8]
         self.worker_sleep = worker_sleep
         self.worker_lock = worker_lock
+        self.worker_working = multiprocessing.Value('i', 1)
         self.parent_pid = parent_pid
         self._exit_evt = multiprocessing.Event()
         self.logger = log.get_logger('worker[%s]' % self.worker_id)
@@ -53,6 +54,9 @@ class Worker(multiprocessing.Process):
     def signal_exit(self):
         self._exit_evt.set()
 
+    def is_working(self):
+        return self.worker_working.value == 1
+
     def run(self):
         self.jobs = Jobs()
         self.tasks = Tasks()
@@ -67,7 +71,11 @@ class Worker(multiprocessing.Process):
                 time.sleep(random.random() * 0.5)
                 task = self.tasks.start()
 
-                if task is not None:
+                if task is None:
+                    self.worker_working.value = 0
+                else:
+                    self.worker_working.value = 1
+
                     job_id = task.job_id
                     job = self.jobs.get(job_id)
 

@@ -71,6 +71,12 @@ class RunLoad(Command):
         dest_options.add_argument('-D', '--database', type=str, default=None, help='Target database name.')
         dest_options.add_argument('-t', '--table', type=str, default=None, help='Target table name.')
 
+        server_options = subparser.add_argument_group('server options', description="Options for auto-started server.")
+        server_options.add_argument('-n', '--num-workers', default=None, type=int,
+            help='Number of workers to run; equates to the number of loads that can be run in parallel.')
+        server_options.add_argument('-i', '--idle-timeout', default=None, type=int,
+            help='Seconds before server automatically shuts down; defaults to never.')
+
         file_access_options = subparser.add_argument_group('file access', description="Configure access to source files.")
         file_access_options.add_argument('--aws-access-key', type=str, default=None,
             help='AWS Access Key (defaults to AWS_ACCESS_KEY_ID environment variable).')
@@ -548,7 +554,7 @@ Invalid command line options for load:
                     "This load job will run in the background.  You can "
                     "monitor its progress with memsql-loader job %s" % (self.job.id))
             with LoaderStorage.fork_wrapper():
-                ServerProcess(daemonize=True).start()
+                ServerProcess(daemonize=True, num_workers=self.options.num_workers, idle_timeout=self.options.idle_timeout).start()
 
     def wait_for_job(self):
         self.logger.info("Waiting for job %s to finish..." % self.job.id)

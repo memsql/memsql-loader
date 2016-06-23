@@ -14,6 +14,7 @@ a.binaries += [('libidn.so.11', '/usr/lib64/libidn.so.11', 'BINARY')]
 a.binaries += [('libidn.so', '/usr/lib64/libidn.so', 'BINARY')]
 a.binaries += [('libsasl2.so.2', '/usr/lib64/libsasl2.so.2', 'BINARY')]
 a.binaries += [('libsasl2.so', '/usr/lib64/libsasl2.so', 'BINARY')]
+a.binaries += [('mmap.so', '/usr/lib/python2.7/lib-dynload/mmap.x86_64-linux-gnu.so', 'BINARY')]
 
 pyz = PYZ(a.pure)
 exe = EXE(pyz,

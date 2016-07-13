@@ -122,3 +122,4 @@ Third-party code
 ================
 MemSQL Loader includes a fork of the python-glob2 project (https://github.com/miracle2k/python-glob2/).
 The code for this fork can be found in [memsql_loader/vendor/glob2](memsql_loader/vendor/glob2).
+

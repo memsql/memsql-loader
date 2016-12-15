@@ -222,9 +222,13 @@ class Downloader(threading.Thread):
                     try:
                         curl.perform()
                         status_code = curl.getinfo(pycurl.HTTP_CODE)
-                        # Catch HTTP client errors, e.g. 404:
+                        # HTTP client errors will cause task failure (no retry)
                         if status_code >= 400 and status_code < 500:
                             raise WorkerException('HTTP status code %s for file %s' % (status_code, self.key.name))
+                        # HTTP server errors will cause task retry
+                        elif status_code >= 500:
+                            self.logger.warn('Received HTTP status code %s for file %s, requeueing' % (status_code, self.key.name))
+                            raise RequeueTask()
 
                         # If we're piping data through a script, catch timeouts and return codes
                         if self.script_proc is not None:

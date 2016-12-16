@@ -1,3 +1,10 @@
+2016-12-15 Version 2.0.5
+        * Changed license to Apache 2.0
+        * Better error handling for invalid spec files
+        * Switch to using PID files to track loader servers
+        * Add an idle timeout for the worker server
+        * Requeue tasks on HTTP 500+ errors
+
 2015-06-26 Version 2.0.4
         * Allowed gzipped files to be loaded even if --non-local-load is not specified
 

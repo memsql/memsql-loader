@@ -1,7 +1,7 @@
 ##############################
 # ENV
 #
-SHELL := /bin/bash
+SHELL := /usr/bin/env bash
 
 .PHONY: pre-check
 pre-check:
